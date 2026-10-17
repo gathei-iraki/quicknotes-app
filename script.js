@@ -4,8 +4,31 @@ const noteCategory = document.querySelector("#note-category");
 const notesList = document.querySelector("#notes-list");
 const noteCount = document.querySelector("#note-count");
 const errorMessage = document.querySelector("#error-message");
+const searchInput = document.querySelector("#search-input");
 
-let notes = [];
+const STORAGE_KEY = "quicknotes-notes";
+
+function loadNotes() {
+  const savedNotes = localStorage.getItem(STORAGE_KEY);
+
+  if (!savedNotes) {
+    return [];
+  }
+
+  try {
+    const parsedNotes = JSON.parse(savedNotes);
+    return Array.isArray(parsedNotes) ? parsedNotes : [];
+  } catch (error) {
+    console.warn("Saved notes could not be loaded.", error);
+    return [];
+  }
+}
+
+function saveNotes() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+}
+
+let notes = loadNotes();
 
 function updateNoteCount() {
   if (notes.length === 0) {
@@ -48,11 +71,23 @@ function createNoteCard(note) {
 }
 
 function render() {
+  const searchWords = searchInput.value.trim().toLowerCase();
+  const visibleNotes = notes.filter((note) =>
+    note.text.toLowerCase().includes(searchWords),
+  );
+
   notesList.replaceChildren();
 
-  notes.forEach((note) => {
+  visibleNotes.forEach((note) => {
     notesList.append(createNoteCard(note));
   });
+
+  if (searchWords && visibleNotes.length === 0) {
+    const noResults = document.createElement("li");
+    noResults.classList.add("empty-state");
+    noResults.textContent = "No notes match your search.";
+    notesList.append(noResults);
+  }
 
   updateNoteCount();
 }
@@ -82,6 +117,7 @@ function addNote(event) {
   };
 
   notes.push(note);
+  saveNotes();
   errorMessage.textContent = "";
   render();
   noteInput.value = "";
@@ -96,9 +132,11 @@ function deleteNote(event) {
   }
 
   notes = notes.filter((note) => note.id !== deleteButton.dataset.noteId);
+  saveNotes();
   render();
 }
 
 noteForm.addEventListener("submit", addNote);
 notesList.addEventListener("click", deleteNote);
+searchInput.addEventListener("input", render);
 render();
